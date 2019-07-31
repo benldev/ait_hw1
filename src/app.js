@@ -39,57 +39,87 @@ function scriptedGame(data){
   console.log("REVERSI\n");
   playGame(game);  
 }
-
 function playGame(game){
-  let passCnt = 0;
-  let nextMove = "X";
+  console.log("Player is " + game.boardPreset.playerLetter + ".\n");
+  console.log(rev.boardToString(game.boardPreset.board));
+  let turn = {who: "player", letter: "X"};
+  game.turn = turn;
+  game.passes = 0;
+  if(game.boardPreset.playerLetter == "O"){
+    turn.who = "computer";
+  }
+  do{    
+    makeMove(game);
+    nextTurn(turn);
+    console.log(boardAndScore(game.boardPreset.board));        
+  }while(!gameOver(game));
+  console.log(results(game)); 
+}
+function makeMove(game){
+  let board = game.boardPreset.board;
+  let isPlayer = (game.turn.who === "player");
+  let validMoves = rev.getValidMoves(board, game.turn.letter);
+  if(validMoves.length === 0){
+    readlineSync.question((isPlayer ? "You" : "Computer") + " has no valid moves. Press <Enter> to pass.\n");
+    game.passes += 1;
+  }
+  else{
+    let move = getMove(game, isPlayer);
+    moveMove(move, game);
+    game.passes = 0;
+  }
+}
+function getMove(game, isPlayer){
   let board = game.boardPreset.board;
   let playerLetter = game.boardPreset.playerLetter;
-  let computerLetter = "X";
-  let startStr = "";
-  let computerMoves = game.scriptedMoves.computer;
-  let playerMoves = game.scriptedMoves.player;
-  let turn = 0;
-  if (playerLetter === "O") {turn = 1;} 
-  if (computerMoves.length != 0){
-    startStr += "Computer will make the following moves: " + computerMoves + "\n";
+  let scripted = game.scriptedMoves[isPlayer ? "player" : "computer"];
+  if(scripted.length != 0){
+    let move = scripted.shift();
+    readlineSync.question((isPlayer ? "Player" : "Computer") + " move to " + move + " is scripted. Press <Enter> to see move.\n");
+    return rev.algebraicToRowCol(move);
   }
-  if (playerMoves.length != 0){
-    startStr += "The player will make the following moves: " + playerMoves + "\n";
+  if(isPlayer){
+    do{
+      let move = readlineSync.question("What is your move?\n> ");
+      if(!rev.isValidMoveAlgebraicNotation(board, playerLetter, move)){
+        console.log("INVALID MOVE. Your move should:\n* be in a format\n* specify an existing empty cell\n* flip at elast one of your oponent's pieces\n\n");        
+      }
+      else{
+        return rev.algebraicToRowCol(move);
+      }
+    } while(true);
   }
-  startStr += "Player is " + playerLetter + "\n" + rev.boardToString(board);
-  console.log(startStr);
-  if(playerLetter === "X") {computerLetter = "O";}
-  do{
-    if(turn == 0){
-      let validMoves = rev.getValidMoves(board, playerLetter);
-      if(validMoves.length > 0){
-        do{
-          var move = readlineSync.question("What is your move?\n> ");
-          if(!rev.isValidMoveAlgebraicNotation(board, playerLetter, move)){
-            console.log("INVALID MOVE. Your move should:\n* be in a format\n* specify an existing empty cell\n* flip at elast one of your oponent's pieces\n\n");        
-          }
-          else{
-            board = rev.placeLetters(board, playerLetter, move);
-            let movePos = rev.algebraicToRowCol(move);
-            board = rev.flipCells(board, rev.getCellsToFlip(board, movePos.row, movePos.col)); 
-            console.log(boardAndScore(board));
-            passCnt = 0;            
-            break; 
-          }
-        } while(true);
-      }
-      else {
-        console.log("No valid moves available for you.\nPress <ENTER> to pass.\n");
-        readlineSync.question();
-        passCnt++;
-      }
-    }       
-  } while(passCnt != 2 && !rev.isBoardFull(board));
-
+  else{
+    let validMoves = rev.getValidMoves(board, game.turn.letter);
+    let move = validMoves[Math.floor(Math.random()*validMoves.length)];
+    readlineSync.question("Press <Enter> to see computer's move.\n");
+    return {row: move[0], col: move[1]};
+  } 
+}
+function moveMove(move, game){
+  game.boardPreset.board = rev.setBoardCell(game.boardPreset.board, game.turn.letter, move.row, move.col);
+  rev.flipCells(game.boardPreset.board, rev.getCellsToFlip(game.boardPreset.board, move.row, move.col));
+}
+function nextTurn(turn){
+  if(turn.who === "player"){turn.who = "computer";}
+  else{turn.who = "player";}
+  if(turn.letter === "X"){turn.letter = "O";}
+  else{turn.letter = "X";}
+}
+function gameOver(game){
+  return rev.isBoardFull(game.boardPreset.board) || game.passes === 2;
 }
 function boardAndScore(board){
   var cnt = rev.getLetterCounts(board);
   var ret = "Score\n=====\nX: " + cnt.X + "\nO: " + cnt.O + "\n";
   return rev.boardToString(board) + ret;
+}
+function results(game){
+  let cnt = rev.getLetterCounts(game.boardPreset.board);
+  let player = game.boardPreset.playerLetter;
+  let computer = "O";
+  if(player === "O") {computer = "X";}
+  if(cnt[player] > cnt[computer]) {return "You won!";}
+  else if(cnt[player] === cnt[computer]){return "Tie!";}
+  else {"You lost!";}
 }
