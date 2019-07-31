@@ -151,6 +151,7 @@ function isValidMove(board, letter, row, col){
 
 function isValidMoveAlgebraicNotation(board, letter, algebraicNotation){
   let pos = algebraicToRowCol(algebraicNotation);
+  if(pos === undefined) {return false;}
   return isValidMove(board, letter, pos.row, pos.col);
 }
 
